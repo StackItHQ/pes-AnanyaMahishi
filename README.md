@@ -3,6 +3,7 @@
 
 ### Welcome to Superjoin's hiring assignment! 🚀
 
+
 ### Objective
 Build a solution that enables real-time synchronization of data between a Google Sheet and a specified database (e.g., MySQL, PostgreSQL). The solution should detect changes in the Google Sheet and update the database accordingly, and vice versa.
 
@@ -59,4 +60,7 @@ We're available at techhiring@superjoin.ai for all queries.
 All the best ✨.
 
 ## Developer's Section
+
+*Hi I'm Ananya Mahishi*
+
 *Add your video here, and your approach to the problem (optional). Leave some comments for us here if you want, we will be reading this :)*
