@@ -64,3 +64,11 @@ All the best ✨.
 *Hi I'm Ananya Mahishi*
 
 *Add your video here, and your approach to the problem (optional). Leave some comments for us here if you want, we will be reading this :)*
+
+Stuff to be worked on 
+- Handle adding values without column name 
+- Maybe a more optimal way with IDs for insert, update, delete
+- Shuffling of rows- keep them constant
+- Database to sheets 
+
+
