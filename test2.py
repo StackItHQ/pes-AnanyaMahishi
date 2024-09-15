@@ -21,7 +21,7 @@ def connect_mysql():
         host='localhost',
         user='root',
         password='',  # No password
-        database='supsql'  # Ensure the database exists
+        database='testsql'  # Ensure the database exists
     )
     return connection
 

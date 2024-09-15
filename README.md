@@ -67,6 +67,8 @@ All the best ✨.
 
 Stuff to be worked on 
 - Handle adding values without column name 
+- Do not allow users to give same column name twice
+- Instead of reading and updating whole db, only update changed rows
 - Maybe a more optimal way with IDs for insert, update, delete
 - Shuffling of rows- keep them constant
 - Database to sheets 

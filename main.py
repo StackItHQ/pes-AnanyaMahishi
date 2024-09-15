@@ -10,3 +10,5 @@ workbook = client.open_by_key(sheet_id)
 
 values=workbook.sheet1.row_values(1)
 print(values)
+all_val=workbook.sheet1.get_all_values()
+print(all_val)  # Fetches all data as a 2D list
