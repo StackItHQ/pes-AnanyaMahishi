@@ -30,7 +30,7 @@ def get_mysql_columns(sheet_name):
     conn = connect_mysql()
     cursor = conn.cursor()
 
-    cursor.execute(f"SHOW COLUMNS FROM {sheet_name}")
+    cursor.execute(f"SHOW COLUMNS FROM `{sheet_name}`")
     columns = [col[0] for col in cursor.fetchall()]
 
     cursor.close()
@@ -48,27 +48,27 @@ def sync_table_structure(sheet_name, google_columns):
     # Detect new columns in Google Sheets and add them to MySQL
     new_columns = [col for col in google_columns if col not in mysql_columns]
     for col in new_columns:
-        alter_query = f"ALTER TABLE {sheet_name} ADD COLUMN {col} VARCHAR(255)"
+        alter_query = f"ALTER TABLE `{sheet_name}` ADD COLUMN `{col}` VARCHAR(255)"
         cursor.execute(alter_query)
 
     # Detect removed columns in Google Sheets and drop them from MySQL
-    removed_columns = [col for col in mysql_columns if col not in google_columns and col != 'id']
+    removed_columns = [col for col in mysql_columns if col not in google_columns and col != 'row_number']
     for col in removed_columns:
-        alter_query = f"ALTER TABLE {sheet_name} DROP COLUMN {col}"
+        alter_query = f"ALTER TABLE `{sheet_name}` DROP COLUMN `{col}`"
         cursor.execute(alter_query)
 
     conn.commit()
     cursor.close()
     conn.close()
 
-# Create MySQL table if it doesn't exist
+# Create MySQL table if it doesn't exist, using row_number as the primary key
 def create_mysql_table(sheet_name, columns):
     conn = connect_mysql()
     cursor = conn.cursor()
 
-    # Add a primary key column for efficient updates
-    create_table_query = f"CREATE TABLE IF NOT EXISTS {sheet_name} (id INT PRIMARY KEY AUTO_INCREMENT, "
-    create_table_query += ", ".join([f"{col} VARCHAR(255)" for col in columns])
+    # Add a 'row_number' as the primary key, and escape column names
+    create_table_query = f"CREATE TABLE IF NOT EXISTS `{sheet_name}` (`row_number` INT PRIMARY KEY, "
+    create_table_query += ", ".join([f"`{col}` VARCHAR(255)" for col in columns])
     create_table_query += ");"
 
     cursor.execute(create_table_query)
@@ -76,41 +76,33 @@ def create_mysql_table(sheet_name, columns):
     cursor.close()
     conn.close()
 
-# Insert or update rows in MySQL
+# Insert or update rows in MySQL using row_number as the key
 def sync_sheet_to_db(sheet_name, google_sheet_data):
     conn = connect_mysql()
     cursor = conn.cursor()
 
-    # Fetch existing data from MySQL
-    cursor.execute(f"SELECT * FROM {sheet_name}")
-    mysql_data = cursor.fetchall()
+    # Prepare column names and data
+    columns = google_sheet_data[0]  # The header row
+    data_rows = google_sheet_data[1:]  # The actual data
 
-    # Convert MySQL data to dictionary (excluding 'id' column)
-    mysql_dict = {tuple(row[1:]): row[0] for row in mysql_data}  # {row_data: id}
+    for row_number, row in enumerate(data_rows, start=1):
+        # Prepare query for inserting or updating data
+        placeholders = ", ".join(["%s"] * len(row))
+        column_list = ", ".join([f"`{col}`" for col in columns])
+        update_query = ", ".join([f"`{col}` = VALUES(`{col}`)" for col in columns])
 
-    # Track Google Sheets data that is new or needs updating
-    google_data_dict = {tuple(row): idx + 1 for idx, row in enumerate(google_sheet_data[1:])}  # Ignore header
+        insert_query = f"""
+        INSERT INTO `{sheet_name}` (`row_number`, {column_list}) VALUES ({row_number}, {placeholders})
+        ON DUPLICATE KEY UPDATE {update_query};
+        """
+        cursor.execute(insert_query, row)
 
-    # Insert or update rows
-    for row in google_data_dict:
-        if row not in mysql_dict:
-            # Row is new, insert it
-            placeholders = ", ".join(["%s"] * len(row))
-            column_list = ", ".join(google_sheet_data[0])
-            insert_query = f"INSERT INTO {sheet_name} ({column_list}) VALUES ({placeholders})"
-            cursor.execute(insert_query, row)
-
-    # Delete rows from MySQL that are no longer in Google Sheets
-    for row in mysql_dict:
-        if row not in google_data_dict:
-            delete_query = f"DELETE FROM {sheet_name} WHERE id = {mysql_dict[row]}"
-            cursor.execute(delete_query)
-
+    # Commit changes and close connection
     conn.commit()
     cursor.close()
     conn.close()
 
-# Sync Google Sheets to MySQL and adjust schema if needed
+# Continuously sync Google Sheets to MySQL and adjust schema if needed
 def sync_google_sheets_to_mysql(sheet, sheet_name):
     # Fetch Google Sheets data
     google_sheet_data = fetch_google_sheet_data(sheet)
