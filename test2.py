@@ -2,6 +2,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import mysql.connector
 import time
+import uuid
 
 # Google Sheets authentication
 def connect_google_sheets(sheet_id):
@@ -37,6 +38,7 @@ def get_mysql_columns(sheet_name):
     conn.close()
     return columns
 
+
 # Sync the structure of the MySQL table to match Google Sheets
 def sync_table_structure(sheet_name, google_columns):
     conn = connect_mysql()
@@ -44,15 +46,23 @@ def sync_table_structure(sheet_name, google_columns):
 
     # Fetch existing columns in MySQL
     mysql_columns = get_mysql_columns(sheet_name)
+    mysql_columns = mysql_columns[1:]  # Skip the 'row_number' column
+    print("Google Columns:", google_columns)
+    print("MySQL Columns:", mysql_columns)
 
     # Detect new columns in Google Sheets and add them to MySQL
-    new_columns = [col for col in google_columns if col not in mysql_columns]
-    for col in new_columns:
-        alter_query = f"ALTER TABLE `{sheet_name}` ADD COLUMN `{col}` VARCHAR(255)"
-        cursor.execute(alter_query)
+    for i, col in enumerate(google_columns):
+        if col not in mysql_columns:
+            # Add the new column in the correct order
+            if i == 0:
+                alter_query = f"ALTER TABLE `{sheet_name}` ADD COLUMN `{col}` VARCHAR(255) FIRST"
+            else:
+                previous_col = google_columns[i - 1]
+                alter_query = f"ALTER TABLE `{sheet_name}` ADD COLUMN `{col}` VARCHAR(255) AFTER `{previous_col}`"
+            cursor.execute(alter_query)
 
     # Detect removed columns in Google Sheets and drop them from MySQL
-    removed_columns = [col for col in mysql_columns if col not in google_columns and col != 'row_number']
+    removed_columns = [col for col in mysql_columns if col not in google_columns]
     for col in removed_columns:
         alter_query = f"ALTER TABLE `{sheet_name}` DROP COLUMN `{col}`"
         cursor.execute(alter_query)
@@ -60,6 +70,7 @@ def sync_table_structure(sheet_name, google_columns):
     conn.commit()
     cursor.close()
     conn.close()
+
 
 # Create MySQL table if it doesn't exist, using row_number as the primary key
 def create_mysql_table(sheet_name, columns):
@@ -130,12 +141,13 @@ def fetch_mysql_data(sheet_name):
     return data_with_columns
 
 # Efficiently update Google Sheets with only changed data
-def update_google_sheets(sheet, new_data):
-    existing_data = fetch_google_sheet_data(sheet)
+def update_google_sheets(sheet, new_data,existing_data):
     
     # Assuming first row is header
     existing_headers = existing_data[0]
     new_headers = new_data[0]
+    # print("OLD HEADER:",existing_headers)
+    # print("NEW HEADER:",new_headers)
     
     # Update headers if needed
     if existing_headers != new_headers:
@@ -160,33 +172,53 @@ def update_google_sheets(sheet, new_data):
 
 
 # Sync MySQL data to Google Sheets
-def sync_db_to_google_sheets(sheet, sheet_name):
+def sync_db_to_google_sheets(sheet, sheet_name,google_sheet_data):
     # Fetch MySQL data
     mysql_data = fetch_mysql_data(sheet_name)
 
     # Update Google Sheets
-    update_google_sheets(sheet, mysql_data)
+    update_google_sheets(sheet, mysql_data,google_sheet_data)
 
     print(f"Synced MySQL data to Google Sheets at {time.ctime()}")
 
 # Continuously sync Google Sheets to MySQL and adjust schema if needed
-def sync_google_sheets_to_mysql(sheet, sheet_name):
-    # Fetch Google Sheets data
-    google_sheet_data = fetch_google_sheet_data(sheet)
+def generate_unique_column_name(name, existing_names):
+    """ Generate a unique column name by appending a UUID if needed. """
+    if name not in existing_names:
+        return name
+    # Append a UUID to make it unique
+    return f"{name}_{uuid.uuid4().hex[:8]}"
 
-    # Filter out blank column names
+def sync_google_sheets_to_mysql(sheet, sheet_name,google_sheet_data):
+
+    # Extract headers and data
     headers = google_sheet_data[0]
-    filtered_columns = [col for col in headers if col.strip()]
-    filtered_data = [filtered_columns] + [
-        [cell for col, cell in zip(headers, row) if col.strip()] 
-        for row in google_sheet_data[1:]
-    ]
+    data = google_sheet_data[1:]
+
+    # Handle blank and duplicate column names
+    unique_headers = []
+    existing_names = set()
+
+    for header in headers:
+        cleaned_header = header.strip()
+        if not cleaned_header:  # Handle blank column names
+            cleaned_header = f"blank_col_{uuid.uuid4().hex[:8]}"
+        if cleaned_header in existing_names:
+            # Handle duplicate column names
+            cleaned_header = generate_unique_column_name(cleaned_header, existing_names)
+        unique_headers.append(cleaned_header)
+        existing_names.add(cleaned_header)
+
+    # Prepare the data with unique headers
+    # print(headers)
+    # print(unique_headers)
+    filtered_data = [unique_headers] + data
 
     # Create MySQL table if it doesn't exist, using filtered columns
-    create_mysql_table(sheet_name, filtered_columns)
+    create_mysql_table(sheet_name, unique_headers)
 
     # Sync table structure (add/remove columns)
-    sync_table_structure(sheet_name, filtered_columns)
+    sync_table_structure(sheet_name, unique_headers)
 
     # Sync Google Sheets data to MySQL
     sync_sheet_to_db(sheet_name, filtered_data)
@@ -200,6 +232,7 @@ if __name__ == "__main__":
     sheet_name = "sheet1"  # Same name as MySQL table
 
     while True:
-        sync_google_sheets_to_mysql(sheet, sheet_name)  # Sync Google Sheets to MySQL
-        sync_db_to_google_sheets(sheet, sheet_name)     # Sync MySQL to Google Sheets
+        google_sheet_data = fetch_google_sheet_data(sheet)
+        sync_google_sheets_to_mysql(sheet, sheet_name,google_sheet_data)  # Sync Google Sheets to MySQL
+        sync_db_to_google_sheets(sheet, sheet_name,google_sheet_data)     # Sync MySQL to Google Sheets
         time.sleep(10)  # Poll for changes every 10 seconds

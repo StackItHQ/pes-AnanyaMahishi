@@ -66,11 +66,13 @@ All the best ✨.
 *Add your video here, and your approach to the problem (optional). Leave some comments for us here if you want, we will be reading this :)*
 
 Stuff to be worked on 
-- Handle adding values without column name 
-- Do not allow users to give same column name twice
-- Instead of reading and updating whole db, only update changed rows
-- Maybe a more optimal way with IDs for insert, update, delete
-- Shuffling of rows- keep them constant
+- Handle adding values without column name DONE(resolved by assigning blank_col_uuid as default)
+- Do not allow users to give same column name twice DONE (resolved with UUID)
+- Instead of reading and updating whole db, only update changed rows DONE (with ids resolved)
+- Maybe a more optimal way with IDs for insert, update, delete DONE (added ids)
+- Shuffling of rows- keep them constant DONE (with ids resolved)
 - Database to sheets 
+- On modifcations to column names do not shuffle column position in tabe
+- Update when user has been idle for 10 seconds
 
 
