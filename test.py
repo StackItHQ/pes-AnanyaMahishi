@@ -3,6 +3,7 @@ from google.oauth2.service_account import Credentials
 import mysql.connector
 import time
 import uuid
+import hashlib
 
 # Google Sheets authentication
 def connect_google_sheets(sheet_id):
@@ -46,42 +47,35 @@ def sync_table_structure(sheet_name, google_columns):
     # Fetch existing columns in MySQL
     mysql_columns = get_mysql_columns(sheet_name)
     mysql_columns = mysql_columns[1:]  # Ignore row number column
-    print(google_columns)
-    print(mysql_columns)
-    
-    # Initialize iterators for Google Sheets and MySQL columns
-    g_index, m_index = 0, 0
-    g_len, m_len = len(google_columns), len(mysql_columns)
 
-    while g_index < g_len or m_index < m_len:
-        if g_index < g_len and m_index < m_len:
-            # Case 1: Columns match, move to next
-            if google_columns[g_index] == mysql_columns[m_index]:
-                g_index += 1
-                m_index += 1
+    print("Google Sheet Columns:", google_columns)
+    print("MySQL Columns:", mysql_columns)
 
-            # Case 2: Rename MySQL column if Google column is different
+    # 1. Handle deleted columns (drop columns from MySQL that are not in Google Sheets)
+    for mysql_col in mysql_columns:
+        if mysql_col not in google_columns:
+            print(f"Dropping column {mysql_col} from MySQL")
+            cursor.execute(f"ALTER TABLE `{sheet_name}` DROP COLUMN `{mysql_col}`;")
+
+    # 2. Handle new columns and re-order existing columns
+    previous_column = None  # To keep track of column positions
+    for idx, google_col in enumerate(google_columns):
+        if google_col not in mysql_columns:
+            if idx == 0:
+                print(f"Adding new column {google_col} to MySQL at the beginning")
+                cursor.execute(f"ALTER TABLE `{sheet_name}` ADD COLUMN `{google_col}` VARCHAR(255) AFTER `row_number`;")
             else:
-                alter_query = f"ALTER TABLE `{sheet_name}` CHANGE COLUMN `{mysql_columns[m_index]}` `{google_columns[g_index]}` VARCHAR(255)"
-                cursor.execute(alter_query)
-                g_index += 1
-                m_index += 1
+                print(f"Adding new column {google_col} to MySQL after `{previous_column}`")
+                cursor.execute(f"ALTER TABLE `{sheet_name}` ADD COLUMN `{google_col}` VARCHAR(255) AFTER `{previous_column}`;")
+        previous_column = google_col
 
-        # Case 3: Google Sheets has more columns (Add new columns)
-        elif g_index < g_len:
-            alter_query = f"ALTER TABLE `{sheet_name}` ADD COLUMN `{google_columns[g_index]}` VARCHAR(255)"
-            cursor.execute(alter_query)
-            g_index += 1
-
-        # Case 4: MySQL has more columns (Drop old columns)
-        elif m_index < m_len:
-            alter_query = f"ALTER TABLE `{sheet_name}` DROP COLUMN `{mysql_columns[m_index]}`"
-            cursor.execute(alter_query)
-            m_index += 1
-
+    # Commit changes and close connection
     conn.commit()
     cursor.close()
     conn.close()
+
+    print(f"Synced table structure for '{sheet_name}'")
+
 
 
 # Create MySQL table if it doesn't exist, using row_number as the primary key
@@ -156,8 +150,8 @@ def fetch_mysql_data(sheet_name):
 def update_google_sheets(sheet, new_data,existing_data):
     
     # Assuming first row is header
-    existing_headers = existing_data[0]
-    new_headers = new_data[0]
+    existing_headers = existing_data[0]#google sheets
+    new_headers = new_data[0]#mysql
     # print("OLD HEADER:",existing_headers)
     # print("NEW HEADER:",new_headers)
     
@@ -238,13 +232,30 @@ def sync_google_sheets_to_mysql(sheet, sheet_name,google_sheet_data):
     print(f"Synced Google Sheet data to MySQL at {time.ctime()}")
 
 
+
+def compute_checksum(data):
+    """Compute a checksum of the data to detect changes."""
+    data_str = str(data).encode('utf-8')
+    return hashlib.md5(data_str).hexdigest()
+
 if __name__ == "__main__":
     sheet_id = "1p94yHH94iSnX3j6vjY5ZIUE9hyezHgz04z8HU7QkcUM"
     sheet = connect_google_sheets(sheet_id)  # Fetch the first sheet in the workbook
     sheet_name = "sheet1"  # Same name as MySQL table
 
+    last_checksum = None
+
     while True:
         google_sheet_data = fetch_google_sheet_data(sheet)
-        sync_google_sheets_to_mysql(sheet, sheet_name,google_sheet_data)  # Sync Google Sheets to MySQL
-        sync_db_to_google_sheets(sheet, sheet_name,google_sheet_data)     # Sync MySQL to Google Sheets
+        current_checksum = compute_checksum(google_sheet_data)
+        
+        if last_checksum != current_checksum:
+            print("Changes detected. Syncing Google Sheets to MySQL...")
+            sync_google_sheets_to_mysql(sheet, sheet_name, google_sheet_data)  # Sync Google Sheets to MySQL
+            last_checksum = current_checksum
+        
+        mysql_data = fetch_mysql_data(sheet_name)
+        update_google_sheets(sheet, mysql_data, google_sheet_data)  # Sync MySQL to Google Sheets
+
         time.sleep(10)  # Poll for changes every 10 seconds
+

@@ -71,8 +71,8 @@ Stuff to be worked on
 - Instead of reading and updating whole db, only update changed rows DONE (with ids resolved)
 - Maybe a more optimal way with IDs for insert, update, delete DONE (added ids)
 - Shuffling of rows- keep them constant DONE (with ids resolved)
-- Database to sheets 
-- On modifcations to column names do not shuffle column position in tabe
-- Update when user has been idle for 10 seconds
-
+- Database to sheets DONE
+- On modifcations to column names do not shuffle column position in tabe DONE (adding after column id)
+- Sheets overwriting db DONE using checksum to check if any changes have been made to sheets if it has, priority given to sheets else sql
+- Update when user has been idle for 10 seconds ?
 
