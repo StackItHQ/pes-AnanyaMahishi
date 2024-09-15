@@ -1,5 +1,6 @@
 import gspread
 from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
 import mysql.connector
 import time
 import uuid
@@ -12,6 +13,15 @@ def connect_google_sheets(sheet_id):
     client = gspread.authorize(creds)
     workbook = client.open_by_key(sheet_id)
     return workbook.sheet1  # Return the first sheet in the workbook
+
+def get_drive_service():
+    scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_file("credentials.json", scopes=scopes)
+    return build("drive", "v3", credentials=creds)
+
+def get_last_modified_time(file_id, drive_service):
+    file = drive_service.files().get(fileId=file_id, fields="modifiedTime").execute()
+    return file.get("modifiedTime")
 
 # Fetch data from Google Sheets
 def fetch_google_sheet_data(sheet):
@@ -240,22 +250,32 @@ def compute_checksum(data):
 
 if __name__ == "__main__":
     sheet_id = "1p94yHH94iSnX3j6vjY5ZIUE9hyezHgz04z8HU7QkcUM"
-    sheet = connect_google_sheets(sheet_id)  # Fetch the first sheet in the workbook
     sheet_name = "sheet1"  # Same name as MySQL table
 
-    last_checksum = None
+    # Connect to Google Sheets and Drive
+    sheet = connect_google_sheets(sheet_id)
+    drive_service = get_drive_service()
+    
+    last_modified_time = None
+    last_mysql_data_checksum = None
+    google_sheet_data = None
 
     while True:
-        google_sheet_data = fetch_google_sheet_data(sheet)
-        current_checksum = compute_checksum(google_sheet_data)
+        current_modified_time = get_last_modified_time(sheet_id, drive_service)
         
-        if last_checksum != current_checksum:
-            print("Changes detected. Syncing Google Sheets to MySQL...")
+        if last_modified_time != current_modified_time:
+            google_sheet_data = fetch_google_sheet_data(sheet)
+            print("Changes detected in Google Sheets. Syncing Google Sheets to MySQL...")
             sync_google_sheets_to_mysql(sheet, sheet_name, google_sheet_data)  # Sync Google Sheets to MySQL
-            last_checksum = current_checksum
+            last_modified_time = current_modified_time
         
         mysql_data = fetch_mysql_data(sheet_name)
-        update_google_sheets(sheet, mysql_data, google_sheet_data)  # Sync MySQL to Google Sheets
+        current_mysql_data_checksum = compute_checksum(mysql_data)
+        
+        if last_mysql_data_checksum != current_mysql_data_checksum:
+            print("Changes detected in MySQL data. Updating Google Sheets...")
+            update_google_sheets(sheet, mysql_data, google_sheet_data)  # Sync MySQL to Google Sheets
+            last_mysql_data_checksum = current_mysql_data_checksum
 
-        time.sleep(10)  # Poll for changes every 10 seconds
+        time.sleep(10)
 
