@@ -22,7 +22,7 @@ def connect_mysql():
     connection = mysql.connector.connect(
         host='localhost',
         user='root',
-        password='',  # No password
+        password='2002',  # No password
         database='supsql'  # Ensure the database exists
     )
     return connection

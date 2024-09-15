@@ -8,7 +8,7 @@ def connect_mysql():
         host='localhost',
         user='root',
         password='2002',  # Update with your MySQL password
-        database='testsql'  # Update with your database name
+        database='supsql'  # Update with your database name
     )
     return connection
 
