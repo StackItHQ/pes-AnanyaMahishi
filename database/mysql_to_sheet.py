@@ -1,5 +1,5 @@
 from database.mysql_connector import connect_mysql
-
+import time
 # Fetch data from MySQL
 def fetch_mysql_data(sheet_name):
     conn = connect_mysql()

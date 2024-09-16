@@ -1,5 +1,6 @@
 import uuid
 from database.mysql_connector import connect_mysql, get_mysql_columns
+import time
 
 # Create MySQL table if it doesn't exist
 def create_mysql_table(sheet_name, columns):
