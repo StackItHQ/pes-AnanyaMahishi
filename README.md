@@ -63,6 +63,9 @@ All the best ✨.
 
 This project provides a tool for bidirectional synchronization between Google Sheets and MySQL. It ensures that data in Google Sheets and MySQL stays consistent, handling various edge cases, schema changes, and optimizations for performance.
 
+Here's a video demo : 
+https://youtu.be/LpSxLFQktRY
+
 ### Architecture Overview
 
 ![Component Diagram](assets/component_dia.png)
