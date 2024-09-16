@@ -63,6 +63,16 @@ All the best ✨.
 
 This project provides a tool for bidirectional synchronization between Google Sheets and MySQL. It ensures that data in Google Sheets and MySQL stays consistent, handling various edge cases, schema changes, and optimizations for performance.
 
+### Architecture Overview
+
+![Component Diagram](assets/component_dia.png)
+
+*Figure 1: Component Diagram*
+
+![Sequence Diagram](assets/seq_dia.png)
+
+*Figure 2: Sequence Diagram*
+
 ### Features
 
 - **Dynamic Table Handling**: Tables in MySQL are created dynamically based on Google Sheets data. Schema changes like adding/removing rows, columns, and cells are automatically synced.
