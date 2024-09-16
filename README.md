@@ -162,6 +162,9 @@ MySQL:
 
 15. **`compute_checksum(data)`**: Computes an MD5 checksum of the provided data to detect changes and minimize unnecessary syncing.
 
-
+### Future Scope
+- Scalability Improvements: Optimizing the synchronization process to handle larger datasets more efficiently can make the solution scalable for enterprise use cases. This could include batching updates or introducing parallel processing for faster syncing.
+- User Interface for Managing Syncs: Developing a user-friendly interface where users can manage sync settings, track updates, and resolve conflicts would make the system more accessible to non-technical users.
+- Support for Additional Data Sources: Expanding the solution to support other databases such as PostgreSQL, MongoDB, or cloud storage solutions (e.g., AWS S3, Google Cloud Storage) will allow for greater flexibility in managing various data architectures.
 
 
