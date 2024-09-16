@@ -63,8 +63,7 @@ All the best ✨.
 
 This project provides a tool for bidirectional synchronization between Google Sheets and MySQL. It ensures that data in Google Sheets and MySQL stays consistent, handling various edge cases, schema changes, and optimizations for performance.
 
-Here's a video demo : 
-https://youtu.be/LpSxLFQktRY
+
 
 ### Architecture Overview
 
@@ -87,6 +86,9 @@ https://youtu.be/LpSxLFQktRY
 - **Column Name Stability**: When modifying column names in Google Sheets, the corresponding columns in MySQL are updated without changing their position in the table.
 - **Sync Priority with Checksum**: Changes in Google Sheets are given priority over the SQL database when both have been modified. A checksum is used to detect changes, ensuring efficient syncing.
 - **Modified Time Check**: The system fetches Google Sheets data only when there are modifications, reducing unnecessary reads.
+
+Here's a video demo : 
+https://youtu.be/LpSxLFQktRY
 
 ### How It Works
 
